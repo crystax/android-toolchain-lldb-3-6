@@ -18,6 +18,10 @@ SOURCES = $(notdir $(wildcard $(PROJ_SRC_DIR)/*.cpp $(PROJ_SRC_DIR)/*.mm)) \
 
 include $(LLDB_LEVEL)/Makefile
 
+ifneq (,$(strip $(OBJCXX)))
+override CXX := $(OBJCXX)
+endif
+
 CFCPP_BaseNameSources := $(sort $(basename $(CFCPP_SOURCES)))
 CFCPP_OBJECTS := $(CFCPP_BaseNameSources:%=$(ObjDir)/%.o)
 
