@@ -142,7 +142,7 @@ PipePosix::CreateNew(bool child_processes_inherit)
         return Error(EINVAL, eErrorTypePOSIX);
 
     Error error;
-#if PIPE2_SUPPORTED
+#if PIPE2_SUPPORTED && defined(O_CLOEXEC)
     if (::pipe2(m_fds, (child_processes_inherit) ? 0 : O_CLOEXEC) == 0)
         return error;
 #else
@@ -189,13 +189,25 @@ PipePosix::OpenAsReader(llvm::StringRef name, bool child_process_inherit)
         return Error("Pipe is already opened");
 
     int flags = O_RDONLY | O_NONBLOCK;
+#if defined(O_CLOEXEC)
     if (!child_process_inherit)
         flags |= O_CLOEXEC;
+#endif
 
     Error error;
     int fd = ::open(name.data(), flags);
     if (fd != -1)
+    {
+#if !defined(O_CLOEXEC)
+        if (!SetCloexecFlag(fd))
+        {
+            error.SetErrorToErrno();
+            ::close(fd);
+        }
+        else
+#endif
         m_fds[READ] = fd;
+    }
     else
         error.SetErrorToErrno();
 
@@ -209,8 +221,10 @@ PipePosix::OpenAsWriterWithTimeout(llvm::StringRef name, bool child_process_inhe
         return Error("Pipe is already opened");
 
     int flags = O_WRONLY | O_NONBLOCK;
+#if defined(O_CLOEXEC)
     if (!child_process_inherit)
         flags |= O_CLOEXEC;
+#endif
 
     using namespace std::chrono;
     const auto finish_time = Now() + timeout;
@@ -237,6 +251,15 @@ PipePosix::OpenAsWriterWithTimeout(llvm::StringRef name, bool child_process_inhe
         }
         else
         {
+#if !defined(O_CLOEXEC)
+            Error error;
+            if (!SetCloexecFlag(fd))
+            {
+                error.SetErrorToErrno();
+                ::close(fd);
+                return error;
+            }
+#endif
             m_fds[WRITE] = fd;
         }
     }
