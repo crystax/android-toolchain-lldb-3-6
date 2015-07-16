@@ -21,8 +21,10 @@ ifneq ($(HOST_OS),MingW)
 DIRS += lldb-platform
 endif
 
+ifeq ($(LLDB_ENABLE_DEBUGSERVER),1)
 ifeq ($(HOST_OS),Darwin)
 DIRS += debugserver
+endif
 endif
 
 ifeq ($(ENABLE_WERROR),0)
